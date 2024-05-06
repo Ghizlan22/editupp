@@ -1,0 +1,11 @@
+from django.shortcuts import render,redirect
+from EditArti import *
+from EditArti.models import Artisan
+
+def editProfile(request):
+	context = {}
+	return render(request, 'editProfile.html', context)
+#def Profile(request):
+	#context = {}
+	#return render(request, 'Profile.html', context)
+
