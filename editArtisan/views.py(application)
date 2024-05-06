@@ -1,0 +1,162 @@
+from django.shortcuts import render
+
+# Create your views here.
+from django.shortcuts import render, redirect
+#from .forms import UserForm, ProfileForm
+from django.urls import reverse
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.contrib.auth.models import User
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+from django.contrib.auth.hashers import make_password, check_password
+from EditArti.models import Artisan,Profile  # Import the Profile model
+from django.contrib import messages
+from django.http import JsonResponse
+from .models import Artisan,Profile
+
+@login_required
+def editProfile(request):
+    if request.method == 'POST':
+        form_type = request.POST.get('form_type')
+
+        if form_type == 'user':
+            username = request.POST.get('username')
+            new_email = request.POST.get('new_email')
+            new_password = request.POST.get('new_password')
+            new_password_confirmation = request.POST.get('new_password_confirmation')
+
+            user = request.user
+
+            profile, created = Profile.objects.get_or_create(user=user)
+
+
+            response_data = {}  # Dictionary to store response data
+            
+            if username:
+                if User.objects.filter(username=username).exclude(pk=user.pk).exists():
+                    response_data['username_error'] = 'Username is already taken.'
+                else:
+                    user.username = username
+
+            if new_email:
+                # Check if the new email is already in use
+                if User.objects.filter(email=new_email).exclude(pk=user.pk).exists():
+                    response_data['email_error'] = 'Email is already in use.'
+                else:
+                    try:
+                        validate_email(new_email)
+                        user.email = new_email
+                    except ValidationError:
+                        response_data['email_error'] = 'Invalid email format.'
+
+            if new_password or new_password_confirmation:
+                if new_password and new_password_confirmation:
+                    if new_password == new_password_confirmation:
+                        if len(new_password) < 8:
+                            response_data['password_error'] = 'Password must contain at least 8 characters.'
+                        elif new_password.isdigit():
+                            response_data['password_error'] = 'Password cannot be entirely numeric.'
+                        elif user.username.lower() in new_password.lower() or user.email.lower() in new_password.lower():
+                            response_data['password_error'] = 'Password cannot be too similar to your other personal information.'
+                        elif new_password.lower() in ['password', '123456', 'qwerty', 'abc123']:  
+                            response_data['password_error'] = 'Password cannot be a commonly used password.'
+                        else:
+                            user.set_password(new_password)
+                    else:
+                        response_data['password_error'] = 'Passwords do not match.'
+                else:
+                    response_data['password_error'] = 'Both password and confirm password must be filled.'
+
+            if response_data:
+                return JsonResponse(response_data, status=400)  # Return error response with status 400
+
+            user.save()
+            profile.save()
+            response_data['success_message'] = 'Profile updated successfully.'
+            return JsonResponse(response_data)  # Return success response
+        elif form_type == 'artisan':
+           new_first_name=request.POST.get('firstName')
+           new_last_name=request.POST.get('lastName')
+           new_birth_day=request.POST.get('new_day')
+           new_birth_month=request.POST.get('new_month')
+           new_birth_year=request.POST.get('new_year')
+           new_gender=request.POST.get('new_gender')
+           new_email=request.POST.get('new_email2')
+           new_phone_number=request.POST.get('new_phone')
+           new_address=request.POST.get('new_address')
+           new_job=request.POST.get('job')
+           new_wilaya=request.POST.get('wilaya')
+           new_description=request.POST.get('new_description')
+           new_pictures=request.FILES.get('new_pictures')
+
+           artisan = request.user
+           artisan_profile = Artisan.objects.get(user=artisan)
+
+           response_data = {}
+
+           if new_first_name:
+              if not new_first_name.isalpha():
+                 # Si le nouveau prénom contient des caractères non alphabétiques
+                  response_data['first_name_error'] = 'first name can only contain alphabetiques.'
+              else:
+                  artisan.first_name = new_first_name
+
+           if new_last_name:
+               if not new_last_name.isalpha():
+                 # Si le nouveau prénom contient des caractères non alphabétiques
+                  response_data['first_name_error'] = 'last name can only contain alphabetiques.' 
+               else:
+                   artisan.last_name = new_last_name
+
+           if new_birth_day:
+              artisan.birth_day=new_birth_day
+
+           if new_birth_month:
+              artisan.birth_month=new_birth_month
+    
+           if new_birth_year:
+              artisan.birth_year=new_birth_year
+
+           if new_gender:
+              artisan.gender=new_gender
+
+           if new_phone_number:
+               if User.objects.filter(phone_number=new_phone_number).exclude(pK=artisan.pK).exists():
+                   response_data['phone_number_error']='phone_number is already taken'
+               else:
+                   artisan.phone_number=new_phone_number
+           if new_address:
+              artisan.address=new_address
+
+           if new_job:
+              artisan.job=new_job
+
+           if new_wilaya:
+              artisan.wilaya=new_wilaya
+
+           if new_description:
+              artisan.description=new_description
+              
+           if new_email:
+                # Check if the new email is already in use
+                if User.objects.filter(email=new_email).exclude(pk=artisan.pk).exists():
+                    response_data['email_error'] = 'Email is already in use.'
+                else:
+                    try:
+                        validate_email(new_email)
+                        artisan.email = new_email
+                    except ValidationError:
+                        response_data['email_error'] = 'Invalid email format.'
+
+           if new_pictures:
+              artisan.pictures=new_pictures
+           
+           if response_data:
+                return JsonResponse(response_data, status=400)  # Return error response with status 400
+
+           artisan.save()
+           response_data['success_message'] = 'Profile updated successfully.'
+           return JsonResponse(response_data)  # Return success response
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)  # Return error response for invalid requests
